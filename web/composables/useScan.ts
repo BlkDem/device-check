@@ -1,21 +1,58 @@
-import { runBrowserScan, SCAN_STEPS, type ScanStepId, type StepStatus } from '~/lib/collectors'
+import { AGENT_STEPS, agentReport, agentStatus, AgentError, forgetAgentLink, takeAgentLink, type AgentLink } from '~/lib/agent'
+import { runBrowserScan, SCAN_STEPS, type StepStatus } from '~/lib/collectors'
 import type { HardwareReport } from '~/lib/types'
 
 export type ScanState = 'idle' | 'scanning' | 'done' | 'error'
 
-/** Shared scan state. "origin" tells whether the shown report is a fresh scan or a saved one. */
+export interface AgentConnection {
+  link: AgentLink
+  version: string
+}
+
+const pending = (ids: readonly string[]) => Object.fromEntries(ids.map((s) => [s, 'pending' as StepStatus]))
+
+/**
+ * Shared scan state. "origin" tells whether the shown report is a fresh scan or a saved one.
+ * When the page was opened from the Windows Agent tray menu, scans go through the agent instead of the browser.
+ */
 export function useScan() {
   const report = useState<HardwareReport | null>('report', () => null)
   const origin = useState<'scan' | 'saved' | null>('reportOrigin', () => null)
   const status = useState<ScanState>('scanStatus', () => 'idle')
-  const steps = useState<Record<ScanStepId, StepStatus>>('scanSteps', () =>
-    Object.fromEntries(SCAN_STEPS.map((s) => [s, 'pending'])) as Record<ScanStepId, StepStatus>,
-  )
+  const agent = useState<AgentConnection | null>('agent', () => null)
+  const agentLost = useState<boolean>('agentLost', () => false)
+  const stepIds = computed<readonly string[]>(() => (agent.value ? AGENT_STEPS : SCAN_STEPS))
+  const steps = useState<Record<string, StepStatus>>('scanSteps', () => pending(SCAN_STEPS))
+
+  async function scanWithAgent(conn: AgentConnection, fresh: boolean) {
+    steps.value = Object.fromEntries(AGENT_STEPS.map((s) => [s, 'running' as StepStatus]))
+    try {
+      const r = await agentReport(conn.link, fresh)
+      const byId = new Map(r.diagnostics?.collectors.map((c) => [c.id, c.status]))
+      // partial = some sources failed but the category was collected
+      const ok = (s: string) => ['ok', 'partial', undefined].includes(byId.get(s))
+      steps.value = Object.fromEntries(AGENT_STEPS.map((s) => [s, ok(s) ? 'done' : 'error']))
+      report.value = r
+      origin.value = 'scan'
+      status.value = 'done'
+    } catch (e) {
+      console.error('[device-check] agent scan failed', e)
+      if (e instanceof AgentError && (e.code === 'unreachable' || e.status === 401 || e.status === 403)) {
+        // Agent was closed or restarted (new token): fall back to the browser scan next time.
+        agent.value = null
+        agentLost.value = true
+        forgetAgentLink()
+        steps.value = pending(SCAN_STEPS)
+      }
+      status.value = 'error'
+    }
+  }
 
   async function scan() {
     if (status.value === 'scanning') return
     status.value = 'scanning'
-    steps.value = Object.fromEntries(SCAN_STEPS.map((s) => [s, 'pending'])) as Record<ScanStepId, StepStatus>
+    if (agent.value) return scanWithAgent(agent.value, true)
+    steps.value = pending(SCAN_STEPS)
     try {
       report.value = await runBrowserScan((id, s) => (steps.value = { ...steps.value, [id]: s }))
       origin.value = 'scan'
@@ -26,12 +63,30 @@ export function useScan() {
     }
   }
 
+  /** Connects to the agent from the tray link (client only) and shows its latest report. */
+  async function connectAgent() {
+    const link = takeAgentLink()
+    if (!link || agent.value) return
+    try {
+      const s = await agentStatus(link)
+      agent.value = { link, version: s.agent_version }
+      agentLost.value = false
+    } catch {
+      forgetAgentLink()
+      agentLost.value = true
+      return
+    }
+    if (status.value === 'scanning') return
+    status.value = 'scanning'
+    await scanWithAgent(agent.value, false)
+  }
+
   function show(r: HardwareReport) {
     report.value = r
     origin.value = 'saved'
   }
 
-  return { report, origin, status, steps, scan, show }
+  return { report, origin, status, steps, stepIds, agent, agentLost, scan, show, connectAgent }
 }
 
 export function downloadJson(r: HardwareReport) {

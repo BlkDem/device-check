@@ -5,6 +5,7 @@ useSeoMeta({ title: () => t('seo.privacy.title'), description: () => t('seo.priv
 
 <template>
   <article class="prose">
+    <span class="kicker">{{ t('nav.privacy') }}</span>
     <h1>{{ t('privacy.h1') }}</h1>
     <p>{{ t('privacy.p1') }}</p>
     <ul>

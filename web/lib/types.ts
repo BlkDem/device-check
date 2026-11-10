@@ -32,6 +32,9 @@ export interface ScanInfo {
   /** OS family: Windows | macOS | Linux | Android | iOS | ChromeOS | null */
   platform: string | null
   collector: { name: string; version: string }
+  /** Agent only: e.g. "Windows 11" */
+  platform_version?: string | null
+  agent_version?: string | null
 }
 
 export interface SystemInfo {
@@ -106,6 +109,18 @@ export interface MemoryInfo {
   channels: Field<string>
   ecc: Field<boolean>
   modules: MemoryModule[]
+  /** Agent only: every SMBIOS memory device record, populated or not (firmware view of the slots) */
+  smbios_slots?: SmbiosMemorySlot[]
+}
+
+export interface SmbiosMemorySlot {
+  locator: string | null
+  bank_label: string | null
+  populated: boolean
+  size_bytes: number | null
+  form_factor: string | null
+  soldered: boolean
+  channel: string | null
 }
 
 export interface GpuInfo {
@@ -192,4 +207,12 @@ export interface HardwareReport {
   displays: DisplayInfo[]
   browser: BrowserInfo | null
   limitations: Limitation[]
+  /** Agent only: how the scan went, per collector */
+  diagnostics?: ScanDiagnostics
+}
+
+export interface ScanDiagnostics {
+  duration_ms: number
+  elevated: boolean
+  collectors: { id: string; status: 'ok' | 'partial' | 'failed' | 'timeout' | 'cancelled'; duration_ms: number; sources: string[]; warnings: string[]; errors: string[] }[]
 }

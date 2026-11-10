@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DeviceCheck.Agent.Cli/DeviceCheck.Agent.Cli.csproj" />
+    <Project Path="src/DeviceCheck.Agent.Collectors/DeviceCheck.Agent.Collectors.csproj" />
+    <Project Path="src/DeviceCheck.Agent.Core/DeviceCheck.Agent.Core.csproj" />
+    <Project Path="src/DeviceCheck.Agent.Export/DeviceCheck.Agent.Export.csproj" />
+    <Project Path="src/DeviceCheck.Agent.LocalApi/DeviceCheck.Agent.LocalApi.csproj" />
+    <Project Path="src/DeviceCheck.Agent.UI/DeviceCheck.Agent.UI.csproj" />
+    <Project Path="src/DeviceCheck.Agent.Windows/DeviceCheck.Agent.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DeviceCheck.Agent.Tests/DeviceCheck.Agent.Tests.csproj" />
+  </Folder>
+</Solution>

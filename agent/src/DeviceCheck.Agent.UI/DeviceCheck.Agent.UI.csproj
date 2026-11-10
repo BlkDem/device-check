@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>DeviceCheck.Agent</AssemblyName>
+    <RootNamespace>DeviceCheck.Agent.UI</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- DPI mode is set here (WinForms ApplicationConfiguration), not in app.manifest -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>Assets\agent.ico</ApplicationIcon>
+    <!-- Reflection-based System.Text.Json, COM interop and WinForms: trimming is not safe -->
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\agent.ico" LogicalName="agent.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DeviceCheck.Agent.Core\DeviceCheck.Agent.Core.csproj" />
+    <ProjectReference Include="..\DeviceCheck.Agent.Collectors\DeviceCheck.Agent.Collectors.csproj" />
+    <ProjectReference Include="..\DeviceCheck.Agent.Export\DeviceCheck.Agent.Export.csproj" />
+    <ProjectReference Include="..\DeviceCheck.Agent.Windows\DeviceCheck.Agent.Windows.csproj" />
+    <ProjectReference Include="..\DeviceCheck.Agent.LocalApi\DeviceCheck.Agent.LocalApi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DeviceCheck.Agent.Tests" />
+  </ItemGroup>
+
+</Project>

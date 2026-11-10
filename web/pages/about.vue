@@ -6,6 +6,7 @@ const statuses = ['exact', 'approximate', 'detected', 'unavailable'] as const
 
 <template>
   <article class="prose">
+    <span class="kicker">{{ t('nav.about') }}</span>
     <h1>{{ t('about.h1') }}</h1>
     <p>{{ t('about.p1') }}</p>
     <p>{{ t('about.p2') }}</p>
@@ -21,6 +22,12 @@ const statuses = ['exact', 'approximate', 'detected', 'unavailable'] as const
 </template>
 
 <style scoped>
-.st { list-style: none; padding: 0 !important; }
-.st li { display: flex; gap: 10px; align-items: center; }
+.st { list-style: none; padding: 0 !important; gap: 10px !important; }
+.st li {
+  display: flex; gap: 12px; align-items: center; padding: 10px 14px !important;
+  background: rgba(8, 12, 20, .7); box-shadow: inset 0 0 0 1px var(--border);
+  clip-path: var(--chamfer-br);
+}
+.st li::before { display: none; }
+@media (max-width: 480px) { .st li { flex-direction: column; align-items: flex-start; gap: 6px; } }
 </style>

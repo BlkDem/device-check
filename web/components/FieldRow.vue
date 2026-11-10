@@ -15,7 +15,7 @@ const long = computed(() => props.def.key === 'user_agent' || props.def.key === 
 </script>
 
 <template>
-  <div class="row" :class="{ off: !available }">
+  <div class="row" :class="[{ off: !available }, field.confidence]">
     <dt>
       <span>{{ label }}</span>
       <Tip v-if="hint" :text="hint" />
@@ -30,9 +30,9 @@ const long = computed(() => props.def.key === 'user_agent' || props.def.key === 
         </button>
       </div>
       <div class="meta">
-        <span>{{ t('meta.source') }}: <code>{{ field.source }}</code></span>
-        <span v-if="field.reason"> · {{ t(`reason.${field.reason}`) }}</span>
-        <span v-if="field.note"> · {{ t(`note.${field.note}`) }}</span>
+        <span class="src">{{ t('meta.source') }}: <code>{{ field.source }}</code></span>
+        <span v-if="field.reason" class="rsn"> · {{ t(`reason.${field.reason}`) }}</span>
+        <span v-if="field.note" class="nte"> · {{ t(`note.${field.note}`) }}</span>
       </div>
     </dd>
   </div>
@@ -40,20 +40,38 @@ const long = computed(() => props.def.key === 'user_agent' || props.def.key === 
 
 <style scoped>
 .row {
-  display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 4px 16px;
-  padding: 10px 0; border-top: 1px solid var(--border);
+  position: relative;
+  display: grid; grid-template-columns: minmax(150px, 34%) minmax(0, 1fr); gap: 4px 18px;
+  padding: 10px 10px 10px 14px;
+  border-top: 1px dashed rgba(43, 66, 96, .55);
+  transition: background-color .15s;
 }
 .row:first-child { border-top: 0; }
-dt { display: flex; align-items: flex-start; gap: 6px; color: var(--text-2); font-size: 13.5px; padding-top: 2px; }
+.row::before {
+  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px;
+  background: var(--border-strong); transition: background-color .15s, box-shadow .15s;
+}
+.row.exact::before { background: color-mix(in srgb, var(--c-exact) 55%, transparent); }
+.row.approximate::before { background: color-mix(in srgb, var(--c-approximate) 55%, transparent); }
+.row.detected::before { background: color-mix(in srgb, var(--c-detected) 55%, transparent); }
+.row:hover { background-color: rgba(25, 230, 255, .035); }
+.row:hover::before { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+dt {
+  display: flex; align-items: flex-start; gap: 6px; padding-top: 5px;
+  color: var(--text-2); font: 600 11.5px/1.35 var(--mono); text-transform: uppercase; letter-spacing: .08em;
+}
 dd { margin: 0; min-width: 0; }
 .val { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 28px; }
-.v { font-size: 14px; color: var(--text); word-break: break-word; }
+.v { font-size: 14.5px; font-weight: 500; color: var(--text); word-break: break-word; min-width: 0; }
 .v.long { font-size: 12.5px; color: var(--text-2); }
-.none { color: var(--text-3); font-style: italic; }
-.meta { font-size: 11.5px; color: var(--text-3); margin-top: 2px; word-break: break-word; }
-.meta code { color: var(--text-3); font-size: 11.5px; }
+.none { color: var(--text-3); font-style: italic; font-family: var(--mono); font-size: 13px; }
+.meta { font-size: 11.5px; color: var(--text-3); margin-top: 3px; word-break: break-word; }
+.meta code { color: color-mix(in srgb, var(--accent) 60%, var(--text-3)); font-size: 11px; }
+.rsn { color: #c99aa9; }
 .off dt { color: var(--text-3); }
+.off::before { background: repeating-linear-gradient(180deg, var(--c-unavailable) 0 3px, transparent 3px 6px); opacity: .6; }
 @media (max-width: 640px) {
-  .row { grid-template-columns: minmax(0, 1fr); }
+  .row { grid-template-columns: minmax(0, 1fr); padding: 10px 4px 10px 12px; }
+  dt { padding-top: 0; }
 }
 </style>

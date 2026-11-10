@@ -53,35 +53,66 @@ const tiles = computed<Tile[]>(() => {
 
 <template>
   <div class="grid">
-    <a v-for="tile in tiles" :key="tile.key" :href="`#${tile.anchor}`" class="card tile" :class="{ off: !tile.value }">
+    <a v-for="tile in tiles" :key="tile.key" :href="`#${tile.anchor}`" class="card tile"
+      :class="[{ off: !tile.value }, tile.value ? tile.field.confidence : 'unavailable']">
       <div class="head">
         <HwIcon :name="tile.icon" :size="18" />
         <span>{{ t(`overview.${tile.key}`) }}</span>
+        <span class="ix" aria-hidden="true" />
       </div>
       <div class="value" :title="tile.value ?? ''">{{ tile.value ?? t('status.unavailable_value') }}</div>
-      <ConfidenceBadge :c="tile.value ? tile.field.confidence : 'unavailable'" />
+      <div class="foot">
+        <ConfidenceBadge :c="tile.value ? tile.field.confidence : 'unavailable'" />
+        <span class="meter" aria-hidden="true"><i v-for="n in 8" :key="n" /></span>
+      </div>
     </a>
   </div>
 </template>
 
 <style scoped>
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: 12px; counter-reset: tile; }
 .tile {
-  display: grid; gap: 8px; align-content: start; justify-items: start; padding: 14px 16px; color: inherit;
-  transition: border-color .15s, transform .15s;
+  --tc: var(--c-unavailable);
+  counter-increment: tile;
+  display: grid; gap: 10px; align-content: start; padding: 14px 16px 14px; color: inherit; min-width: 0;
+  transition: transform .15s;
 }
-.tile:hover { text-decoration: none; border-color: var(--border-strong); transform: translateY(-1px); }
-.head { display: flex; align-items: center; gap: 8px; color: var(--accent); font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.tile.exact { --tc: var(--c-exact); }
+.tile.approximate { --tc: var(--c-approximate); }
+.tile.detected { --tc: var(--c-detected); }
+.tile:hover, .tile:focus-visible {
+  text-decoration: none; transform: translateY(-2px);
+  --frame: linear-gradient(135deg, var(--accent), var(--accent-line) 30%, var(--magenta-line) 70%, var(--magenta));
+  --bracket: var(--magenta);
+  --fill: linear-gradient(180deg, rgba(20, 36, 54, .96), rgba(9, 14, 24, .97));
+}
+.tile:focus-visible { outline: none; }
+.tile:hover .value, .tile:focus-visible .value { animation: hud-glitch .26s steps(3) 1; }
+.head {
+  display: flex; align-items: center; gap: 8px; color: var(--accent);
+  font: 600 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .16em;
+}
 .head span { color: var(--text-2); }
-.value { font-size: 16px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
-.off .value { color: var(--text-3); font-weight: 500; font-style: italic; }
+.head .ix { margin-left: auto; color: var(--text-3); letter-spacing: .04em; }
+.head .ix::before { content: '[' counter(tile, decimal-leading-zero) ']'; }
+.value {
+  font: 600 17px/1.25 var(--display); letter-spacing: .02em; color: var(--text);
+  overflow-wrap: anywhere; min-height: 1.25em;
+}
+.off .value { color: var(--text-3); font-weight: 500; font-style: italic; font-family: var(--mono); font-size: 13.5px; }
 .off .head { color: var(--text-3); }
+.foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; min-width: 0; }
+.meter { display: flex; gap: 2px; flex: 0 1 64px; min-width: 0; }
+.meter i { flex: 1; height: 6px; background: var(--tc); opacity: .85; transform: skewX(-20deg); }
+.approximate .meter i:nth-child(n + 6), .detected .meter i:nth-child(n + 7) { opacity: .15; }
+.off .meter i { opacity: .15; }
 @media (max-width: 640px) {
-  .grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .tile { padding: 12px; }
-  .value { font-size: 14px; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .tile { padding: 12px 12px; gap: 8px; }
+  .value { font-size: 14.5px; }
+  .meter { display: none; }
 }
 @media (max-width: 380px) {
-  .grid { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
 }
 </style>
