@@ -32,6 +32,9 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run generate
+        env:
+          # Microsoft Store listing of the agent (repository variable STORE_URL); empty until the app is published.
+          NUXT_PUBLIC_STORE_URL: ${{ vars.STORE_URL }}
 
       - name: SSH key
         run: |

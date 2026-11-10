@@ -49,9 +49,14 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - name: Inno Setup
         run: choco install innosetup -y --no-progress
-      - name: Build installer and ZIPs
-        run: ./agent/build/publish.ps1 -Installer -SkipTests
+      - name: Build installer, ZIPs and Store package (with the embedded dashboard)
+        run: ./agent/build/publish.ps1 -Installer -SkipTests -Msix -MsixIdentityName "${{ vars.MSIX_IDENTITY_NAME || 'DeviceCheck.Agent' }}" -MsixPublisher "${{ vars.MSIX_PUBLISHER || 'CN=DeviceCheck' }}" -MsixPublisherDisplayName "${{ vars.MSIX_PUBLISHER_DISPLAY_NAME || 'Device Check' }}"
       - name: Smoke test
         run: ./agent/build/smoke-installer.ps1

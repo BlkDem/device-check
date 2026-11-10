@@ -19,7 +19,11 @@ useSeoMeta({
 // Fetched in the browser: the manifest changes with every release, the page itself is static.
 const manifest = ref<Manifest | null>(null)
 const failed = ref(false)
+// Opened from the agent's own dashboard (http://127.0.0.1:port): releases live on the public site.
+const local = ref(false)
 onMounted(async () => {
+  local.value = location.hostname === '127.0.0.1' // the tray always opens the embedded dashboard on 127.0.0.1
+  if (local.value) return
   try {
     const r = await fetch(cfg.agentManifest, { cache: 'no-store' })
     if (!r.ok) throw new Error(String(r.status))
@@ -50,22 +54,30 @@ const rows = ['cpu', 'memory', 'board', 'gpu', 'storage', 'health', 'display'] a
         <h2>{{ t('agent.download') }}</h2>
         <span v-if="manifest" class="mono ver">v{{ manifest.version }} · {{ date }}</span>
       </div>
-      <p v-if="!manifest && !failed" class="muted">{{ t('agent.loading') }}</p>
+      <p v-if="local" class="notice"><HwIcon name="info" :size="16" /><span>{{ t('agent.local_updates') }} <a :href="`${cfg.siteUrl}/agent`" target="_blank" rel="noopener">{{ cfg.siteUrl.replace('https://', '') }}/agent</a></span></p>
+      <p v-else-if="!manifest && !failed" class="muted">{{ t('agent.loading') }}</p>
       <p v-if="failed" class="notice warn">
         <HwIcon name="alert" :size="16" />{{ t('agent.manifest_failed') }}
         <a :href="cfg.releasesUrl" target="_blank" rel="noopener">GitHub Releases</a>
       </p>
+      <div v-if="cfg.storeUrl && !local" class="file store">
+        <div class="fi">
+          <div class="fk">Microsoft Store<span class="rec mono">{{ t('agent.recommended') }}</span></div>
+          <div class="fd">{{ t('agent.store_desc') }}</div>
+        </div>
+        <a class="btn primary" :href="cfg.storeUrl" target="_blank" rel="noopener"><HwIcon name="download" :size="16" />{{ t('agent.store_get') }}</a>
+      </div>
       <div v-if="manifest" class="files">
         <div v-for="f in files" :key="f.name" class="file" :class="f.kind">
           <div class="fi">
-            <div class="fk">{{ t(`agent.kind.${f.kind}`) }}<span v-if="f.kind === 'installer'" class="rec mono">{{ t('agent.recommended') }}</span></div>
+            <div class="fk">{{ t(`agent.kind.${f.kind}`) }}<span v-if="f.kind === 'installer' && !cfg.storeUrl" class="rec mono">{{ t('agent.recommended') }}</span></div>
             <div class="fd">{{ t(`agent.kind_desc.${f.kind}`) }}</div>
             <div class="fm mono">
               {{ f.name }} · {{ formatBytes(f.size_bytes, t) }}
               <button class="sha" :title="t('agent.copy_sha')" @click="copy(f.sha256)">SHA-256 {{ f.sha256.slice(0, 12) }}…</button>
             </div>
           </div>
-          <a class="btn" :class="{ primary: f.kind === 'installer' }" :href="href(f)" download>
+          <a class="btn" :class="{ primary: f.kind === 'installer' && !cfg.storeUrl }" :href="href(f)" download>
             <HwIcon name="download" :size="16" />{{ t('agent.get') }}
           </a>
         </div>
@@ -121,7 +133,7 @@ const rows = ['cpu', 'memory', 'board', 'gpu', 'storage', 'health', 'display'] a
 .ver { color: var(--yellow); font-size: 12px; letter-spacing: .08em; }
 .files { display: grid; gap: 10px; }
 .file { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 12px 14px; background: rgba(8, 12, 20, .6); box-shadow: inset 0 0 0 1px var(--border); }
-.file.installer { box-shadow: inset 2px 0 0 var(--accent), inset 0 0 0 1px var(--accent-line); }
+.file.installer, .file.store { box-shadow: inset 2px 0 0 var(--accent), inset 0 0 0 1px var(--accent-line); }
 .fi { min-width: 0; }
 .fk { font: 600 15px var(--display); letter-spacing: .04em; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .rec { font-size: 10px; color: #001218; background: var(--accent); padding: 1px 6px; letter-spacing: .1em; text-transform: uppercase; }

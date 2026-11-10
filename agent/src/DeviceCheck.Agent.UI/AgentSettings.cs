@@ -17,6 +17,12 @@ internal sealed class AgentSettings
     public int Port { get; set; } = 47615;
     public bool OpenSiteOnStart { get; set; } = true;
 
+    /// <summary>
+    /// "local": the dashboard embedded in the agent at http://127.0.0.1:port/ (default; the browser never calls
+    /// localhost from a public site, so there is no local-network permission prompt). "site": the public site.
+    /// </summary>
+    public string Dashboard { get; set; } = "local";
+
     /// <summary>Problems found while loading (shown in the tray, never fatal).</summary>
     public List<string> Warnings { get; } = [];
 
@@ -40,7 +46,7 @@ internal sealed class AgentSettings
         {
             switch (args[i])
             {
-                case "--site" when i + 1 < args.Count: s.SiteUrl = args[++i]; break;
+                case "--site" when i + 1 < args.Count: s.SiteUrl = args[++i]; s.Dashboard = "site"; break;
                 case "--port" when i + 1 < args.Count && int.TryParse(args[i + 1], out var p): s.Port = p; i++; break;
                 case "--no-open": s.OpenSiteOnStart = false; break;
             }
@@ -53,6 +59,7 @@ internal sealed class AgentSettings
             site = new Uri(DefaultSite);
         }
         if (s.Port is < 0 or > 65535) s.Port = 47615;
+        if (s.Dashboard is not ("local" or "site")) s.Dashboard = "local";
 
         // The site itself is always allowed, over http and https (the server answers on both);
         // for a local site both host spellings are.
@@ -70,6 +77,9 @@ internal sealed class AgentSettings
         s.AllowedOrigins = origins.Order(StringComparer.Ordinal).ToList();
         return s;
     }
+
+    /// <summary>Embedded dashboard link (same origin as the API).</summary>
+    public static string LocalLink(string baseUrl, int port, string token) => $"{baseUrl}/#agent={port}&token={token}";
 
     /// <summary>Site link that hands the agent address and token to the page. The fragment is never sent to any server.</summary>
     public string SiteLink(int port, string token) =>

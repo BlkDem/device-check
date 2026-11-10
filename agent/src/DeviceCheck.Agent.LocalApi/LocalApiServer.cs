@@ -29,6 +29,9 @@ public sealed class LocalApiOptions
 
     /// <summary>Storage health provider (StorageHealthReport JSON). Null = endpoint disabled.</summary>
     public Func<CancellationToken, Task<string>>? StorageHealth { get; init; }
+
+    /// <summary>Dashboard served by the agent itself at "/" (same origin as the API: no browser local-network prompt).</summary>
+    public IStaticSite? Site { get; init; }
 }
 
 /// <summary>
@@ -128,7 +131,7 @@ public sealed class LocalApiServer : IAsyncDisposable
         var origin = req.Headers.Origin.ToString();
         if (origin.Length > 0)
         {
-            if (!_origins.Contains(origin))
+            if (!_origins.Contains(origin) && origin != BaseUrl && origin != $"http://localhost:{Port}")
             {
                 await Error(res, 403, "origin_not_allowed");
                 return;
@@ -156,8 +159,15 @@ public sealed class LocalApiServer : IAsyncDisposable
             return;
         }
 
-        var path = (req.Path.Value ?? "").TrimEnd('/');
         bool get = HttpMethods.IsGet(req.Method), post = HttpMethods.IsPost(req.Method);
+        var raw = req.Path.Value ?? "/";
+        if (!raw.StartsWith("/api/", StringComparison.Ordinal) && raw != "/api")
+        {
+            await StaticAsync(res, raw, get || HttpMethods.IsHead(req.Method));
+            return;
+        }
+
+        var path = raw.TrimEnd('/');
         switch (path)
         {
             case "/api/status" when get:
@@ -213,6 +223,30 @@ public sealed class LocalApiServer : IAsyncDisposable
             res.Headers.Allow = path == "/api/scan" ? "POST" : "GET";
             await Error(res, 405, "method_not_allowed");
         }
+    }
+
+    // The dashboard is public content (the same files as the website): no token, read-only, strict headers.
+    private async Task StaticAsync(HttpResponse res, string path, bool read)
+    {
+        if (_options.Site is null) { await Error(res, 404, "not_found"); return; }
+        if (!read) { res.Headers.Allow = "GET"; await Error(res, 405, "method_not_allowed"); return; }
+        res.Headers["X-Frame-Options"] = "DENY";
+        res.Headers["Referrer-Policy"] = "no-referrer";
+        res.Headers.ContentSecurityPolicy =
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+            "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'";
+        var file = _options.Site.Get(path);
+        if (file is null)
+        {
+            res.StatusCode = 404;
+            file = _options.Site.Get("/404.html");
+            if (file is null) return;
+        }
+        // Hashed build assets never change; pages must always be revalidated.
+        res.Headers.CacheControl = file.Path.StartsWith("/_nuxt/", StringComparison.Ordinal) ? "public, max-age=31536000, immutable" : "no-cache";
+        res.ContentType = file.ContentType;
+        res.ContentLength = file.Content.Length;
+        await res.Body.WriteAsync(file.Content);
     }
 
     private object Status()

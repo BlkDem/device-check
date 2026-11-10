@@ -11,10 +11,15 @@
 **Сайт** собирается статически (`nuxt generate`) и раздаётся nginx из `/var/www/fastuser/data/www/device-check.umolab.ru`. Node.js на сервере не нужен. Выгрузка идёт через rsync с `--delay-updates`: новые файлы появляются разом. Папку `downloads/` деплой сайта не трогает.
 
 **Релиз агента** собирается на Windows-раннере:
-- `agent/build/publish.ps1 -Installer`: тесты, установщик Inno Setup и ZIP-архивы;
+- `agent/build/publish.ps1 -Installer -Msix`: тесты, сборка сайта, встроенная в агента как дашборд, установщик Inno Setup, ZIP-архивы и пакет MSIX для Microsoft Store;
 - smoke-тест: тихая установка, запуск консольной версии, удаление;
 - GitHub Release;
-- выкладка в `downloads/agent/` на сайте вместе с `latest.json`. Его читает страница `/agent`; предыдущая версия удаляется.
+- выкладка в `downloads/agent/` на сайте вместе с `latest.json`. Его читает страница `/agent`; предыдущая версия удаляется;
+- пакет MSIX — отдельный артефакт `store-package`: он загружается в Partner Center, см. [agent/msix/README.md](../agent/msix/README.md).
+
+Переменные репозитория (`gh variable set …`):
+- `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER`, `MSIX_PUBLISHER_DISPLAY_NAME` — идентификация пакета из Partner Center;
+- `STORE_URL` — ссылка на приложение в Store; после неё на странице `/agent` появится кнопка Microsoft Store.
 
 Версия берётся из тега. Её же стоит обновить в `agent/Directory.Build.props`.
 

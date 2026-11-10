@@ -26,13 +26,25 @@ jobs:
       - id: v
         shell: bash
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - name: Inno Setup
         run: choco install innosetup -y --no-progress
-      - name: Build (tests, installer, ZIPs, latest.json)
-        run: ./agent/build/publish.ps1 -Installer -Version ${{ steps.v.outputs.version }}
+      - name: Build (tests, embedded dashboard, installer, ZIPs, Store package, latest.json)
+        run: ./agent/build/publish.ps1 -Installer -Version ${{ steps.v.outputs.version }} -Msix -MsixIdentityName "${{ vars.MSIX_IDENTITY_NAME || 'DeviceCheck.Agent' }}" -MsixPublisher "${{ vars.MSIX_PUBLISHER || 'CN=DeviceCheck' }}" -MsixPublisherDisplayName "${{ vars.MSIX_PUBLISHER_DISPLAY_NAME || 'Device Check' }}"
 
       - name: Smoke test — silent install, run, uninstall
         run: ./agent/build/smoke-installer.ps1
+
+      - name: Store package (upload to Partner Center; not a public download)
+        uses: actions/upload-artifact@v5
+        with:
+          name: store-package
+          path: agent/dist/*.msix
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@v5
         with:

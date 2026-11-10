@@ -61,3 +61,19 @@ for ($i = 0; $i -lt $sizes.Count; $i++) {
 foreach ($f in $frames) { $bw.Write($f) }
 $bw.Close()
 "written $out ($((Get-Item $out).Length) bytes)"
+
+# MSIX / Microsoft Store logos (agent/msix/Assets): same mark, PNG.
+$assets = Join-Path (Split-Path -Parent $PSScriptRoot) 'msix/Assets'
+New-Item -ItemType Directory -Force -Path $assets | Out-Null
+foreach ($l in @(@{ n = 'StoreLogo'; s = 50 }, @{ n = 'Square44x44Logo'; s = 44 }, @{ n = 'Square150x150Logo'; s = 150 }, @{ n = 'Square44x44Logo.targetsize-256'; s = 256 })) {
+    [IO.File]::WriteAllBytes((Join-Path $assets "$($l.n).png"), (New-Frame $l.s))
+}
+# Wide tile: the mark centred on a transparent 310×150 canvas.
+$wide = New-Object System.Drawing.Bitmap 310, 150
+$g = [System.Drawing.Graphics]::FromImage($wide)
+$mark = [System.Drawing.Image]::FromStream((New-Object System.IO.MemoryStream (, (New-Frame 120))))
+$g.DrawImage($mark, 95, 15, 120, 120)
+$g.Dispose()
+$wide.Save((Join-Path $assets 'Wide310x150Logo.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+$wide.Dispose()
+"written MSIX logos to $assets"

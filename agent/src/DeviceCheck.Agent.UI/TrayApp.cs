@@ -21,6 +21,7 @@ internal sealed class TrayApp : ApplicationContext
     private readonly SynchronizationContext _ui;
     private readonly ScanService _scans;
     private readonly StorageHealthCache _storage;
+    private readonly IStaticSite? _site = LoadSite();
     private readonly NotifyIcon _icon;
     private readonly ContextMenuStrip _menu = new();
     private readonly ToolStripMenuItem _status, _summary, _open, _rescan, _save, _copy;
@@ -79,6 +80,7 @@ internal sealed class TrayApp : ApplicationContext
                 AllowedOrigins = _settings.AllowedOrigins,
                 AgentVersion = _version,
                 StorageHealth = _storage.GetJsonAsync,
+                Site = _site,
             });
         }
         catch (Exception e)
@@ -129,7 +131,10 @@ internal sealed class TrayApp : ApplicationContext
         if (_api is null || _exiting) return;
         try
         {
-            Process.Start(new ProcessStartInfo(_settings.SiteLink(_api.Port, _api.Token)) { UseShellExecute = true })?.Dispose();
+            var url = _site is not null && _settings.Dashboard == "local"
+                ? AgentSettings.LocalLink(_api.BaseUrl, _api.Port, _api.Token)
+                : _settings.SiteLink(_api.Port, _api.Token);
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
         }
         catch (Exception e)
         {
@@ -201,6 +206,13 @@ internal sealed class TrayApp : ApplicationContext
 
     // NotifyIcon.Text is limited to 127 characters.
     private static string Clip(string s) => s.Length <= 127 ? s : s[..126] + "…";
+
+    /// <summary>The site build embedded at publish time; null in development builds (then the public site is used).</summary>
+    private static IStaticSite? LoadSite()
+    {
+        using var s = typeof(TrayApp).Assembly.GetManifestResourceStream("site.zip");
+        return s is null ? null : new ZipStaticSite(s);
+    }
 
     private static Icon LoadIcon()
     {

@@ -16,6 +16,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\agent.ico" LogicalName="agent.ico" />
+    <!-- Static build of the site (web/.output/public), produced by build/publish.ps1. Optional for local builds. -->
+    <EmbeddedResource Include="Assets\site.zip" LogicalName="site.zip" Condition="Exists('Assets\site.zip')" />
   </ItemGroup>
 
   <ItemGroup>

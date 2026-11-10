@@ -25,6 +25,8 @@ export default defineNuxtConfig({
       /** Manifest of the latest agent release, published next to the site by CI. */
       agentManifest: '/downloads/agent/latest.json',
       releasesUrl: 'https://github.com/BlkDem/device-check/releases',
+      /** Microsoft Store listing (NUXT_PUBLIC_STORE_URL at build time); empty until the app is published. */
+      storeUrl: '',
     },
   },
 })
