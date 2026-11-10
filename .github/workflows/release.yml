@@ -32,21 +32,7 @@ jobs:
         run: ./agent/build/publish.ps1 -Installer -Version ${{ steps.v.outputs.version }}
 
       - name: Smoke test — silent install, run, uninstall
-        shell: pwsh
-        run: |
-          $setup = Get-Item agent/dist/device-check-agent-*-setup.exe
-          $dir = Join-Path $env:RUNNER_TEMP 'dca'
-          Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$dir" -Wait
-          foreach ($f in 'DeviceCheck.Agent.exe', 'DeviceCheck.Agent.Cli.exe', 'unins000.exe') { if (-not (Test-Path "$dir/$f")) { throw "missing $f" } }
-          $hw = & "$dir/DeviceCheck.Agent.Cli.exe" --json --quiet | ConvertFrom-Json
-          if ($hw.schema_version -ne '1.0') { throw 'hardware report: bad schema' }
-          $st = & "$dir/DeviceCheck.Agent.Cli.exe" storage --json --quiet | ConvertFrom-Json
-          if ($st.kind -ne 'storage_health') { throw 'storage report: bad kind' }
-          "installed agent works: CPU '$($hw.cpu.model.value)', $($st.storage_health.devices.Count) disk(s)"
-          Start-Process "$dir/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
-          Start-Sleep -Seconds 3
-          if (Test-Path "$dir/DeviceCheck.Agent.exe") { throw 'uninstall left files behind' }
-          exit 0 # the CLI exits 1 when a collector times out on the runner; the checks above are what matters
+        run: ./agent/build/smoke-installer.ps1
 
       - uses: actions/upload-artifact@v4
         with:

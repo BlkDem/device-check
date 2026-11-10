@@ -39,3 +39,19 @@ jobs:
           dotnet-version: 10.0.x
       - run: dotnet build agent/DeviceCheck.Agent.slnx -c Release
       - run: dotnet test agent/tests/DeviceCheck.Agent.Tests -c Release --no-build --logger "console;verbosity=normal"
+
+  installer:
+    name: Installer (build, install / uninstall smoke test)
+    runs-on: windows-latest
+    needs: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build installer and ZIPs
+        run: ./agent/build/publish.ps1 -Installer -SkipTests
+      - name: Smoke test
+        run: ./agent/build/smoke-installer.ps1
