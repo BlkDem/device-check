@@ -14,8 +14,11 @@ export default defineNuxtConfig({
   typescript: { strict: true },
   // Production is a static site (nuxt generate → nginx). Every page is prerendered; scans run in the browser.
   nitro: {
-    prerender: { crawlLinks: true, routes: ['/', '/agent', '/about', '/limitations', '/privacy'] },
+    prerender: { crawlLinks: true, routes: ['/', '/agent', '/about', '/limitations', '/privacy'], failOnError: true },
   },
+  // Payload stays inlined in each page: separate _payload.json files are not needed for a site this small, and
+  // payload caching of "/" fails with unstorage ≥ 1.16 ("Invalid key") under Nuxt 3.13.
+  experimental: { payloadExtraction: false },
   runtimeConfig: {
     public: {
       siteUrl: 'https://device-check.umolab.ru',

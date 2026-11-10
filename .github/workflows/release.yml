@@ -1,0 +1,111 @@
+name: Release agent
+
+# Tag vX.Y.Z → tests, installer + portable ZIPs, install/uninstall smoke test, GitHub Release,
+# files + latest.json → https://device-check.umolab.ru/downloads/agent/ (read by the /agent page).
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - id: v
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build (tests, installer, ZIPs, latest.json)
+        run: ./agent/build/publish.ps1 -Installer -Version ${{ steps.v.outputs.version }}
+
+      - name: Smoke test — silent install, run, uninstall
+        shell: pwsh
+        run: |
+          $setup = Get-Item agent/dist/device-check-agent-*-setup.exe
+          $dir = Join-Path $env:RUNNER_TEMP 'dca'
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$dir" -Wait
+          foreach ($f in 'DeviceCheck.Agent.exe', 'DeviceCheck.Agent.Cli.exe', 'unins000.exe') { if (-not (Test-Path "$dir/$f")) { throw "missing $f" } }
+          $hw = & "$dir/DeviceCheck.Agent.Cli.exe" --json --quiet | ConvertFrom-Json
+          if ($hw.schema_version -ne '1.0') { throw 'hardware report: bad schema' }
+          $st = & "$dir/DeviceCheck.Agent.Cli.exe" storage --json --quiet | ConvertFrom-Json
+          if ($st.kind -ne 'storage_health') { throw 'storage report: bad kind' }
+          "installed agent works: CPU '$($hw.cpu.model.value)', $($st.storage_health.devices.Count) disk(s)"
+          Start-Process "$dir/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          Start-Sleep -Seconds 3
+          if (Test-Path "$dir/DeviceCheck.Agent.exe") { throw 'uninstall left files behind' }
+          exit 0 # the CLI exits 1 when a collector times out on the runner; the checks above are what matters
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: |
+            agent/dist/*.exe
+            agent/dist/*.zip
+            agent/dist/SHA256SUMS.txt
+            agent/dist/latest.json
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://device-check.umolab.ru/agent
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: dist
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          cat > notes.md <<EOF
+          **Device Check Agent ${VERSION}** — Windows 10/11 x64. Download page: https://device-check.umolab.ru/agent
+
+          | File | |
+          |---|---|
+          | \`device-check-agent-${VERSION}-setup.exe\` | **Installer (recommended).** Per-user, no administrator rights; Start menu shortcut, optional autostart |
+          | \`device-check-agent-${VERSION}-win-x64-portable.zip\` | One EXE, nothing installed |
+          | \`device-check-agent-cli-${VERSION}-win-x64.zip\` | Console version: hardware report and \`storage\` health, JSON |
+          | \`device-check-agent-${VERSION}-win-x64-framework.zip\` | Small; needs .NET 10 Desktop + ASP.NET Core runtimes |
+
+          Checksums: \`SHA256SUMS.txt\`. The binaries are not code-signed yet: Windows SmartScreen may ask to confirm ("More info" → "Run anyway").
+          EOF
+          gh release create "v${VERSION}" dist/* --repo "$GITHUB_REPOSITORY" --title "Device Check Agent ${VERSION}" \
+            --notes-file notes.md --generate-notes --verify-tag
+
+      - name: SSH key
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Publish downloads
+        # Only downloads/agent/ is replaced (previous version removed); the site itself is untouched.
+        run: |
+          mkdir -p out/downloads/agent && cp dist/* out/downloads/agent/
+          rsync -rlptz --delete --delay-updates --chmod=D2775,F664 -e "ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes" \
+            out/downloads/ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:./downloads/"
+
+      - name: Smoke test
+        run: |
+          curl -fsS https://device-check.umolab.ru/downloads/agent/latest.json | tee latest.json
+          test "$(jq -r .version latest.json)" = "${{ needs.build.outputs.version }}"
+          curl -fsSI "https://device-check.umolab.ru/downloads/agent/$(jq -r '.files[] | select(.kind=="installer") | .name' latest.json)" | head -1

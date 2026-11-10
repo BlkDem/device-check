@@ -9,7 +9,7 @@ useSeoMeta({ title: () => t('seo.privacy.title'), description: () => t('seo.priv
     <h1>{{ t('privacy.h1') }}</h1>
     <p>{{ t('privacy.p1') }}</p>
     <ul>
-      <li v-for="i in 5" :key="i">{{ t(`privacy.l${i}`) }}</li>
+      <li v-for="i in 6" :key="i">{{ t(`privacy.l${i}`) }}</li>
     </ul>
     <p>{{ t('privacy.p2') }}</p>
   </article>
