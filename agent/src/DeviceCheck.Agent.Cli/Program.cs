@@ -16,6 +16,7 @@ internal static class Program
         Nothing is sent anywhere. A JSON file is written only when you ask for it.
 
         Usage: DeviceCheck.Agent.Cli [options]
+               DeviceCheck.Agent.Cli storage [--json] [--out <file|dir>] [--quick]   storage health (storage --help)
           --out <file|dir>   Save the HardwareReport JSON (a directory gets device-check-report-YYYY-MM-DD-HH-mm.json)
           --json             Print the JSON to stdout instead of the summary
           --compact          Compact JSON (with --json/--out)
@@ -27,6 +28,7 @@ internal static class Program
     private static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = new UTF8Encoding(false);
+        if (args is ["storage", ..]) return await StorageCommand.RunAsync(args[1..]);
         string? outPath = null;
         bool json = false, compact = false, quiet = false;
         int timeoutSec = 20;

@@ -30,6 +30,21 @@ public sealed class WmiObject : Dictionary<string, object?>
 
     public bool? Bool(string name) => TryGetValue(name, out var v) && v is bool b ? b : null;
 
+    /// <summary>uint8[] property (WMI returns byte[] or a boxed numeric array).</summary>
+    public byte[]? Bytes(string name)
+    {
+        if (!TryGetValue(name, out var v) || v is null) return null;
+        if (v is byte[] b) return b;
+        if (v is not Array arr) return null;
+        var r = new byte[arr.Length];
+        for (int i = 0; i < arr.Length; i++)
+        {
+            try { r[i] = Convert.ToByte(arr.GetValue(i), System.Globalization.CultureInfo.InvariantCulture); }
+            catch { return null; }
+        }
+        return r;
+    }
+
     public IReadOnlyList<long> Longs(string name)
     {
         if (!TryGetValue(name, out var v) || v is not Array arr) return [];
@@ -39,10 +54,18 @@ public sealed class WmiObject : Dictionary<string, object?>
     }
 }
 
-public sealed class WmiException(string query, string message, Exception? inner = null)
+public sealed class WmiException(string query, string message, Exception? inner = null, string? code = null)
     : Exception($"WMI query failed ({query}): {message}", inner)
 {
     public string Query { get; } = query;
+
+    /// <summary>WMI status name ("AccessDenied", "NotSupported", "InvalidClass"...) or HRESULT as 0xXXXXXXXX.</summary>
+    public string? Code { get; } = code;
+
+    public bool IsAccessDenied => Code is "AccessDenied" or "0x80041003" or "0x80070005";
+
+    /// <summary>The class/namespace does not exist or the provider does not support the device.</summary>
+    public bool IsNotSupported => Code is "NotSupported" or "InvalidClass" or "InvalidNamespace" or "ProviderNotFound" or "0x8004100C" or "0x80041010" or "0x8004100E";
 }
 
 public interface IWmiClient

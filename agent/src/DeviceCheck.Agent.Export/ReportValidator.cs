@@ -49,6 +49,33 @@ public static class ReportValidator
         return errors;
     }
 
+    /// <summary>Structural validation of a StorageHealthReport JSON document (v1.0).</summary>
+    public static IReadOnlyList<string> ValidateStorageHealth(string json)
+    {
+        JsonNode? root;
+        try { root = JsonNode.Parse(json); }
+        catch (JsonException e) { return [$"invalid JSON: {e.Message}"]; }
+        if (root is not JsonObject obj) return ["root must be an object"];
+
+        var errors = new List<string>();
+        foreach (var k in new[] { "schema_version", "kind", "collected_at", "scan", "storage_health", "limitations" })
+            if (!obj.ContainsKey(k)) errors.Add($"missing top-level key '{k}'");
+        if ((string?)obj["schema_version"] != Monitoring.Core.StorageHealthSchema.Version) errors.Add($"schema_version must be \"{Monitoring.Core.StorageHealthSchema.Version}\"");
+        if ((string?)obj["kind"] != Monitoring.Core.StorageHealthSchema.Kind) errors.Add("kind must be 'storage_health'");
+        if (!DateTimeOffset.TryParse((string?)obj["collected_at"], out _)) errors.Add("collected_at must be ISO-8601");
+        if (obj["storage_health"] is JsonObject sh)
+        {
+            foreach (var k in new[] { "devices", "other_volumes", "alerts" })
+                if (sh[k] is not JsonArray) errors.Add($"storage_health.{k} must be an array");
+            foreach (var d in sh["devices"] as JsonArray ?? [])
+                if (d?["id"] is null || d["volumes"] is not JsonArray) errors.Add("every device needs 'id' and 'volumes'");
+        }
+        else errors.Add("storage_health must be an object");
+
+        Walk(obj, "$", errors);
+        return errors;
+    }
+
     /// <summary>Every object that looks like a Field must have value/source/confidence/collected_at and be consistent.</summary>
     private static void Walk(JsonNode node, string path, List<string> errors)
     {

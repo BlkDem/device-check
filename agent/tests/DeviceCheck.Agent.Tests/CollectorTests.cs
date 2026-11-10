@@ -308,7 +308,7 @@ public class StorageCollectorTests
     [InlineData(14, "virtual")]
     [InlineData(16, "storage_spaces")]
     [InlineData(99, null)]
-    public void Bus_types(int code, string? expected) => Assert.Equal(expected, StorageCollector.BusType(code));
+    public void Bus_types(int code, string? expected) => Assert.Equal(expected, Core.Normalization.StorageEnums.BusType(code));
 }
 
 public class DisplayCollectorTests

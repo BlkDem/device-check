@@ -19,12 +19,13 @@ public interface IHardwareCollector
     Task CollectAsync(CollectorContext ctx, CancellationToken ct);
 }
 
-/// <summary>Per-collector view of the report and its diagnostics.</summary>
-public sealed class CollectorContext(HardwareReport report, CollectorDiagnostics diagnostics)
+/// <summary>
+/// Error isolation and provenance helpers shared by every collector family (hardware report, health monitoring).
+/// </summary>
+public class CollectionContext(List<Limitation> limitations, CollectorDiagnostics diagnostics)
 {
     private readonly object _lock = new();
 
-    public HardwareReport Report { get; } = report;
     public CollectorDiagnostics Diagnostics { get; } = diagnostics;
 
     public void UsedSource(string source)
@@ -44,9 +45,9 @@ public sealed class CollectorContext(HardwareReport report, CollectorDiagnostics
 
     public void Limit(string section, string code)
     {
-        lock (Report.Limitations)
-            if (!Report.Limitations.Any(l => l.Section == section && l.Code == code))
-                Report.Limitations.Add(new Limitation(section, code));
+        lock (limitations)
+            if (!limitations.Any(l => l.Section == section && l.Code == code))
+                limitations.Add(new Limitation(section, code));
     }
 
     /// <summary>Runs a source call; on failure records the error and returns <paramref name="fallback"/>.</summary>
@@ -68,7 +69,7 @@ public sealed class CollectorContext(HardwareReport report, CollectorDiagnostics
         finally { Time(source, sw.ElapsedMilliseconds); }
     }
 
-    private void Time(string source, long ms)
+    protected void Time(string source, long ms)
     {
         lock (_lock) Diagnostics.SourceTimingsMs[source] = Diagnostics.SourceTimingsMs.GetValueOrDefault(source) + ms;
     }
@@ -89,6 +90,13 @@ public sealed class CollectorContext(HardwareReport report, CollectorDiagnostics
         }
         finally { Time(source, sw.ElapsedMilliseconds); }
     }
+}
+
+/// <summary>Per-collector view of the hardware report and its diagnostics.</summary>
+public sealed class CollectorContext(HardwareReport report, CollectorDiagnostics diagnostics)
+    : CollectionContext(report.Limitations, diagnostics)
+{
+    public HardwareReport Report { get; } = report;
 }
 
 public sealed record ScanProgress(string CollectorId, string Status, int Completed, int Total);

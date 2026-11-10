@@ -36,6 +36,32 @@ public static class ReportJson
 
     public static HardwareReport? Deserialize(string json) => JsonSerializer.Deserialize<HardwareReport>(json, Options);
 
+    /// <summary>StorageHealthReport → JSON, with the same identifier sanitizing as the hardware report.</summary>
+    public static string Serialize(Monitoring.Core.StorageHealthReport report, bool indented = true)
+    {
+        var node = JsonSerializer.SerializeToNode(report, indented ? Options : CompactOptions)!;
+        ReportSanitizer.Sanitize(node);
+        return node.ToJsonString(indented ? Options : CompactOptions);
+    }
+
+    public static Monitoring.Core.StorageHealthReport? DeserializeStorageHealth(string json) =>
+        JsonSerializer.Deserialize<Monitoring.Core.StorageHealthReport>(json, Options);
+
+    /// <summary>device-check-storage-health-YYYY-MM-DD-HH-mm.json (local time).</summary>
+    public static string FileName(Monitoring.Core.StorageHealthReport r) =>
+        $"device-check-storage-health-{r.CollectedAt.ToLocalTime().ToString("yyyy-MM-dd-HH-mm", CultureInfo.InvariantCulture)}.json";
+
+    /// <summary>Validates, then writes UTF-8 (no BOM). Throws <see cref="ReportValidationException"/> if invalid.</summary>
+    public static async Task<string> WriteAsync(Monitoring.Core.StorageHealthReport report, string path, CancellationToken ct = default)
+    {
+        var json = Serialize(report);
+        var errors = ReportValidator.ValidateStorageHealth(json);
+        if (errors.Count > 0) throw new ReportValidationException(errors);
+        if (Directory.Exists(path)) path = Path.Combine(path, FileName(report));
+        await File.WriteAllTextAsync(path, json, new UTF8Encoding(false), ct).ConfigureAwait(false);
+        return Path.GetFullPath(path);
+    }
+
     /// <summary>device-check-report-YYYY-MM-DD-HH-mm.json (local time of the scan).</summary>
     public static string FileName(HardwareReport r) =>
         $"device-check-report-{r.Scan.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd-HH-mm", CultureInfo.InvariantCulture)}.json";
@@ -60,7 +86,7 @@ public static class ReportSanitizer
 {
     public static readonly IReadOnlySet<string> ForbiddenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "serial", "serial_number", "hostname", "computer_name", "processor_id", "mac", "mac_address", "uuid", "asset_tag", "user_name",
+        "serial", "serial_number", "hostname", "computer_name", "processor_id", "mac", "mac_address", "uuid", "unique_id", "asset_tag", "user_name",
     };
 
     public static void Sanitize(JsonNode node)

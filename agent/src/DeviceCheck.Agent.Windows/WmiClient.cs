@@ -58,15 +58,15 @@ public sealed class WmiClient(TimeSpan timeout) : IWmiClient
         }
         catch (ManagementException e)
         {
-            throw new WmiException(wql, $"{e.ErrorCode}: {e.Message.Trim()}", e);
+            throw new WmiException(wql, $"{e.ErrorCode}: {e.Message.Trim()}", e, e.ErrorCode.ToString());
         }
         catch (System.Runtime.InteropServices.COMException e)
         {
-            throw new WmiException(wql, $"0x{e.HResult:X8}: {e.Message.Trim()}", e);
+            throw new WmiException(wql, $"0x{e.HResult:X8}: {e.Message.Trim()}", e, $"0x{e.HResult:X8}");
         }
         catch (UnauthorizedAccessException e)
         {
-            throw new WmiException(wql, "access denied", e);
+            throw new WmiException(wql, "access denied", e, "AccessDenied");
         }
     }
 }

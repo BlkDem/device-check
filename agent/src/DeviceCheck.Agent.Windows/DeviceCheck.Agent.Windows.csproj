@@ -1,7 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\DeviceCheck.Agent.Core\DeviceCheck.Agent.Core.csproj" />
+    <ProjectReference Include="..\DeviceCheck.Agent.Monitoring\DeviceCheck.Agent.Monitoring.csproj" />
   </ItemGroup>
 
   <ItemGroup>

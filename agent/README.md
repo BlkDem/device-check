@@ -103,6 +103,7 @@ agent/
 │   ├── DeviceCheck.Agent.Collectors   сборщики: system, cpu, motherboard, memory, gpu, storage, display
 │   ├── DeviceCheck.Agent.Windows      реализации источников: WMI (с таймаутами), SMBIOS, CPUID и топология,
 │   │                                  DXGI/D3D12, QueryDisplayConfig + EDID, реестр и системные API
+│   ├── DeviceCheck.Agent.Monitoring   System Health Monitor: Core / Storage / Smart / Filesystems (см. ниже)
 │   ├── DeviceCheck.Agent.Export       сериализация (snake_case, UTF-8 без BOM), очистка идентификаторов, валидатор
 │   ├── DeviceCheck.Agent.LocalApi     локальный HTTP API для сайта (Kestrel, только 127.0.0.1)
 │   ├── DeviceCheck.Agent.UI           трей-приложение DeviceCheck.Agent.exe (WinForms NotifyIcon), настройки
@@ -114,6 +115,53 @@ agent/
 Сборщики зависят только от интерфейсов (`IWmiClient`, `ISmbiosSource`, `IProcessorSource`, `IGraphicsSource`, `IDisplaySource`, `IPlatformSource`). Поэтому их можно тестировать на фикстурах без реального железа, а для поддержки другой ОС достаточно новых реализаций источников. Фикстуры есть только в тестах, в реальном сканировании они не используются.
 
 Оркестратор запускает категории параллельно (по умолчанию до 3 одновременно), у каждой свой таймаут. Ошибка или зависание одного сборщика не мешает остальным: он получает статус `partial`, `failed` или `timeout`, а причина попадает в `diagnostics`. WMI-запросы тоже ограничены по времени.
+
+## System Health Monitor — накопители (этап 1: сбор данных)
+
+```powershell
+DeviceCheck.Agent.Cli.exe storage                    # сводка в консоли
+DeviceCheck.Agent.Cli.exe storage --json             # StorageHealthReport в stdout
+DeviceCheck.Agent.Cli.exe storage --out .            # device-check-storage-health-YYYY-MM-DD-HH-mm.json
+DeviceCheck.Agent.Cli.exe storage --quick            # только место и температура, без SMART (для частого опроса)
+```
+
+Модуль `DeviceCheck.Agent.Monitoring`:
+
+| Папка | Что внутри |
+|---|---|
+| `Core` | `StorageHealthReport` (те же `Field<T>`, `ScanInfo`, `Limitation`, diagnostics, что у HardwareReport), `IHealthMonitor<T>`, `IStorageHealthCollector`, `IStorageDeviceSource` |
+| `Smart` | разбор NVMe Health Log (02h) и Identify Controller, ATA SMART (данные + пороги), каталог атрибутов, маппинг в поля |
+| `Storage` | инвентаризация дисков, сборщики `temperature` / `nvme` / `ata_smart` / `reliability`, `StorageHealthMonitor` |
+| `Filesystems` | тома и свободное место, привязка томов к физическим дискам |
+
+Низкоуровневые запросы — `DeviceCheck.Agent.Windows/StorageDeviceSource.cs`. Это `IOCTL_STORAGE_QUERY_PROPERTY` на `\\.\PhysicalDriveN`: дескриптор открывается с нулевыми правами доступа, поэтому возможны только запросы, без чтения и записи данных диска.
+
+Источники и права:
+
+| Данные | Источник | Без админа |
+|---|---|---|
+| диски, модель, шина, тип, объём, статус здоровья Windows | `MSFT_PhysicalDisk`, `MSFT_Disk`, `Win32_DiskDrive` | да |
+| NVMe Health Information (износ, резерв, наработка, ошибки, объёмы чтения и записи, температура и сенсоры) | `StorageDeviceProtocolSpecificProperty`, log 02h | да (проверено на Crucial P3 / stornvme) |
+| пороги температуры NVMe (WCTEMP / CCTEMP) | Identify Controller | да |
+| температура от драйвера (любые диски) | `StorageDeviceTemperatureProperty`, затем `StorageAdapterTemperatureProperty` | да, если драйвер поддерживает |
+| SATA SMART: атрибуты, пороги, PredictFailure | `root\wmi MSStorageDriver_ATAPISmartData / FailurePredictThresholds / FailurePredictStatus` | **нет**, нужен администратор |
+| счётчики надёжности Windows (износ, ошибки, max температура) | `MSFT_StorageReliabilityCounter` | **нет**, нужен администратор |
+| тома, метки, ФС, свободное место, связь с дисками | `MSFT_Volume`, `MSFT_Partition`, `System.IO.DriveInfo` | да |
+
+Правила:
+- `Win32_DiskDrive` не считается источником SMART.
+- У атрибутов ATA общепринятый смысл получают только те, что одинаковы у всех производителей: 4, 5, 9, 10, 12, 193, 194, 196–199. Значение помечается `detected`. Для остальных (износ SSD, объёмы записи 241/242, …) — raw, normalized и threshold без интерпретации, причина `vendor_specific`. Неизвестные id попадают в отчёт без названия.
+- NVMe `Percentage Used` — это доля израсходованного ресурса, а не остаток; может быть больше 100. Объёмы считаются по спецификации: Data Units × 512 000 байт. 128-битные счётчики, не помещающиеся в 64 бита, помечаются `value_out_of_range`, а не обрезаются.
+- Пороги температуры берутся только у производителя. Общие ориентировочные пороги и классификация здоровья (`health.status`) появятся на этапе 2 (Health Engine). Сейчас `status` = `unavailable` / `not_evaluated`, и отсутствие SMART никогда не превращается в плохой статус.
+- Идентификатор диска — хэш его UniqueId или серийного номера. Сам серийный номер в отчёт не попадает.
+- Модуль только читает данные: SMART-команды, меняющие состояние, самотесты, запись на диск, очистка и исправление ФС не используются.
+
+Ограничения Windows:
+- SATA SMART и счётчики надёжности доступны только администратору.
+- USB-мосты обычно не пропускают SMART: причина `usb_bridge_no_passthrough`.
+- RAID-контроллеры скрывают физические диски.
+- Виртуальные диски SMART не имеют.
+- Температура от драйвера поддерживается не везде: на этой машине stornvme отвечает Win32 1117, и температура берётся из NVMe-лога.
 
 ## Правила достоверности
 
@@ -145,7 +193,7 @@ CPU: `MaxClockSpeed` из WMI — это номинальная (базовая)
 
 ## Тесты
 
-`dotnet test tests/DeviceCheck.Agent.Tests` — 189 тестов:
+`dotnet test tests/DeviceCheck.Agent.Tests` — 227 тестов:
 - нормализация CPU: вендор, бренд, поколение, микроархитектура;
 - RAM: DDR3/DDR4/DDR5/LPDDR, MT/s ↔ МГц, слоты, распаянная память, ECC, каналы, смешанные модули, фолбэк SMBIOS → WMI;
 - несколько GPU, несколько дисков и мониторов, ошибки и таймауты WMI, зависшие сборщики, отмена;
@@ -153,7 +201,14 @@ CPU: `MaxClockSpeed` из WMI — это номинальная (базовая)
 - контракт: тест читает `web/lib/types.ts` и проверяет, что в JSON агента есть каждый ключ сайта. Исключение — явный список полей, которые бывают только в браузере;
 - переводы: у каждого кода причины, пометки и ограничения из отчёта агента есть перевод в `web/i18n/en.ts` и `ru.ts`;
 - локальный API: токен, чужой Origin, DNS rebinding, preflight/PNA, лимит тела запроса, неизвестные пути, занятый порт, освобождение порта при выходе, недоступность из локальной сети, общий скан для одновременных запросов;
-- настройки трея: файл, аргументы, битый файл, токен передаётся только во фрагменте ссылки.
+- настройки трея: файл, аргументы, битый файл, токен передаётся только во фрагменте ссылки;
+- мониторинг накопителей:
+  - разбор NVMe-лога (смещения, 128-битные счётчики, Data Units → байты, Percentage Used > 100) и Identify;
+  - ATA SMART: пороги, 48-битный raw, пустые и повторяющиеся слоты, интерпретируются только стандартные атрибуты;
+  - NVMe, SATA SSD, HDD, USB, виртуальный диск;
+  - несколько разделов на одном диске, том на двух дисках, subst;
+  - без прав администратора, отказ в доступе к NVMe, битые SMART-данные, недоступный WMI, зависший сборщик, быстрый режим;
+  - расчёт свободного места, JSON без серийных номеров, стабильные id.
 
 Сквозная проверка: настоящий API агента и сайт в headless Chrome (1366 и 375 px, RU и EN). Режим агента, 7 шагов, повторный скан — без ошибок в консоли, без непереведённых ключей, без горизонтального переполнения.
 

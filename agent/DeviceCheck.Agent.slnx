@@ -5,6 +5,7 @@
     <Project Path="src/DeviceCheck.Agent.Core/DeviceCheck.Agent.Core.csproj" />
     <Project Path="src/DeviceCheck.Agent.Export/DeviceCheck.Agent.Export.csproj" />
     <Project Path="src/DeviceCheck.Agent.LocalApi/DeviceCheck.Agent.LocalApi.csproj" />
+    <Project Path="src/DeviceCheck.Agent.Monitoring/DeviceCheck.Agent.Monitoring.csproj" />
     <Project Path="src/DeviceCheck.Agent.UI/DeviceCheck.Agent.UI.csproj" />
     <Project Path="src/DeviceCheck.Agent.Windows/DeviceCheck.Agent.Windows.csproj" />
   </Folder>

@@ -58,8 +58,8 @@ public sealed class StorageCollector(IWmiClient wmi, IPlatformSource platform) :
     internal static StorageDevice FromPhysicalDisk(WmiObject p, WmiObject? disk, WmiObject? drive, int? number)
     {
         var model = FirmwareText.Clean(p.Str("Model")) ?? FirmwareText.Clean(p.Str("FriendlyName"));
-        var bus = BusType(p.Int("BusType"));
-        var media = MediaType(p.Int("MediaType"));
+        var bus = StorageEnums.BusType(p.Int("BusType"));
+        var media = StorageEnums.MediaType(p.Int("MediaType"));
         var maker = FirmwareText.Clean(p.Str("Manufacturer"));
         var spindle = p.Long("SpindleSpeed");
 
@@ -86,7 +86,7 @@ public sealed class StorageCollector(IWmiClient wmi, IPlatformSource platform) :
             PhysicalSectorBytes = F.Exact(p.Int("PhysicalSectorSize") is > 0 and var ps ? ps : (int?)null, PdSrc),
             LogicalSectorBytes = F.Exact(p.Int("LogicalSectorSize") is > 0 and var ls ? ls : (int?)null, PdSrc),
             FormFactor = F.Unavailable<string?>(PdSrc, F.Reasons.NotReported),
-            SmartStatus = F.Exact(Health(p.Int("HealthStatus")), PdSrc + ".HealthStatus", "storage_health_not_raw_smart"),
+            SmartStatus = F.Exact(StorageEnums.Health(p.Int("HealthStatus")), PdSrc + ".HealthStatus", "storage_health_not_raw_smart"),
             IsSystem = F.Exact(disk?.Bool("IsSystem"), "Storage API MSFT_Disk.IsSystem"),
             IsBoot = F.Exact(disk?.Bool("IsBoot"), "Storage API MSFT_Disk.IsBoot"),
             DiskNumber = F.Exact(number, PdSrc + ".DeviceId"),
@@ -111,16 +111,4 @@ public sealed class StorageCollector(IWmiClient wmi, IPlatformSource platform) :
             SmartStatus = F.Unavailable<string?>(src, F.Reasons.RequiresAdmin),
         };
     }
-
-    internal static string? MediaType(int? v) => v switch { 3 => "hdd", 4 => "ssd", 5 => "scm", _ => null };
-
-    internal static string? BusType(int? v) => v switch
-    {
-        1 => "scsi", 2 => "atapi", 3 => "ata", 4 => "ieee1394", 5 => "ssa", 6 => "fibre_channel", 7 => "usb", 8 => "raid",
-        9 => "iscsi", 10 => "sas", 11 => "sata", 12 => "sd", 13 => "mmc", 14 => "virtual", 15 => "file_backed_virtual",
-        16 => "storage_spaces", 17 => "nvme", 18 => "scm", 19 => "ufs",
-        _ => null,
-    };
-
-    internal static string? Health(int? v) => v switch { 0 => "healthy", 1 => "warning", 2 => "unhealthy", 5 => "unknown", _ => null };
 }

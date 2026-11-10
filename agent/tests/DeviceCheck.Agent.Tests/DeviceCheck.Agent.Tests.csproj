@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DeviceCheck.Agent.Core\DeviceCheck.Agent.Core.csproj" />
+    <ProjectReference Include="..\..\src\DeviceCheck.Agent.Monitoring\DeviceCheck.Agent.Monitoring.csproj" />
     <ProjectReference Include="..\..\src\DeviceCheck.Agent.Collectors\DeviceCheck.Agent.Collectors.csproj" />
     <ProjectReference Include="..\..\src\DeviceCheck.Agent.Export\DeviceCheck.Agent.Export.csproj" />
     <ProjectReference Include="..\..\src\DeviceCheck.Agent.Windows\DeviceCheck.Agent.Windows.csproj" />
