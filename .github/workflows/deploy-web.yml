@@ -50,6 +50,6 @@ jobs:
       - name: Smoke test
         run: |
           for p in / /agent /about /limitations /privacy; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' "https://device-check.umolab.ru$p")
+            code=$(curl -sL -o /dev/null -w '%{http_code}' "https://device-check.umolab.ru$p") # /agent → 301 → /agent/
             echo "$p $code"; test "$code" = 200
           done
