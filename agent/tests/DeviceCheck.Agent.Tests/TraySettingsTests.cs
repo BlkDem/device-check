@@ -6,14 +6,21 @@ namespace DeviceCheck.Agent.Tests;
 public class TraySettingsTests
 {
     [Fact]
-    public void Defaults_allow_the_local_site_under_both_host_names()
+    public void Defaults_point_to_the_production_site_over_http_and_https()
     {
         var s = AgentSettings.Load(null, []);
-        Assert.Equal("http://localhost:3000", s.SiteUrl);
+        Assert.Equal("https://device-check.umolab.ru", s.SiteUrl);
         Assert.Equal(47615, s.Port);
         Assert.True(s.OpenSiteOnStart);
-        Assert.Equal(new[] { "http://127.0.0.1:3000", "http://localhost:3000" }, s.AllowedOrigins);
+        Assert.Equal(new[] { "http://device-check.umolab.ru", "https://device-check.umolab.ru" }, s.AllowedOrigins);
         Assert.Empty(s.Warnings);
+    }
+
+    [Fact]
+    public void Local_site_is_allowed_under_both_host_names()
+    {
+        var s = AgentSettings.Load(null, ["--site", "http://localhost:3000"]);
+        Assert.Equal(new[] { "http://127.0.0.1:3000", "http://localhost:3000" }, s.AllowedOrigins);
     }
 
     [Fact]
@@ -29,7 +36,7 @@ public class TraySettingsTests
             Assert.Equal("https://check.example/app/", s.SiteUrl);
             Assert.Equal(50000, s.Port);
             Assert.False(s.OpenSiteOnStart);
-            Assert.Equal(new[] { "https://check.example", "https://staging.check.example" }, s.AllowedOrigins);
+            Assert.Equal(new[] { "http://check.example", "https://check.example", "https://staging.check.example" }, s.AllowedOrigins);
 
             Assert.Equal("http://localhost:4000", AgentSettings.Load(path, ["--site", "http://localhost:4000"]).SiteUrl);
         }

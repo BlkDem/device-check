@@ -5,11 +5,15 @@ export type Locale = 'ru' | 'en'
 const messages: Record<Locale, Record<string, string>> = { ru, en }
 export const LOCALES: Locale[] = ['ru', 'en']
 
+export const localeFromLanguage = (lang: string): Locale => (/^(ru|uk|be|kk)/i.test(lang) ? 'ru' : 'en')
+
 function detectLocale(): Locale {
-  let lang = ''
-  if (import.meta.server) lang = useRequestHeaders(['accept-language'])['accept-language'] ?? ''
-  else lang = navigator.language
-  return /^ru|^uk|^be|^kk/i.test(lang) ? 'ru' : 'en'
+  if (import.meta.server) {
+    // Prerendering (static build) has no request headers: Russian is the default, the browser corrects it on load.
+    const header = useRequestHeaders(['accept-language'])['accept-language']
+    return header ? localeFromLanguage(header) : 'ru'
+  }
+  return localeFromLanguage(navigator.language)
 }
 
 export function useI18n() {

@@ -1,5 +1,6 @@
-import { AGENT_STEPS, agentReport, agentStatus, AgentError, forgetAgentLink, takeAgentLink, type AgentLink } from '~/lib/agent'
+import { AGENT_STEPS, agentReport, agentStatus, agentStorage, AgentError, forgetAgentLink, takeAgentLink, type AgentLink } from '~/lib/agent'
 import { runBrowserScan, SCAN_STEPS, type StepStatus } from '~/lib/collectors'
+import type { StorageHealthReport } from '~/lib/storage'
 import type { HardwareReport } from '~/lib/types'
 
 export type ScanState = 'idle' | 'scanning' | 'done' | 'error'
@@ -7,6 +8,7 @@ export type ScanState = 'idle' | 'scanning' | 'done' | 'error'
 export interface AgentConnection {
   link: AgentLink
   version: string
+  features: string[]
 }
 
 const pending = (ids: readonly string[]) => Object.fromEntries(ids.map((s) => [s, 'pending' as StepStatus]))
@@ -23,6 +25,21 @@ export function useScan() {
   const agentLost = useState<boolean>('agentLost', () => false)
   const stepIds = computed<readonly string[]>(() => (agent.value ? AGENT_STEPS : SCAN_STEPS))
   const steps = useState<Record<string, StepStatus>>('scanSteps', () => pending(SCAN_STEPS))
+  const storage = useState<StorageHealthReport | null>('storageHealth', () => null)
+  const storageStatus = useState<'idle' | 'loading' | 'done' | 'error'>('storageStatus', () => 'idle')
+
+  /** Storage health is fetched separately: it is optional and must never delay the main report. */
+  async function loadStorage(conn: AgentConnection) {
+    if (!conn.features.includes('storage_health')) return
+    storageStatus.value = 'loading'
+    try {
+      storage.value = await agentStorage(conn.link)
+      storageStatus.value = 'done'
+    } catch (e) {
+      console.warn('[device-check] storage health unavailable', e)
+      storageStatus.value = 'error'
+    }
+  }
 
   async function scanWithAgent(conn: AgentConnection, fresh: boolean) {
     steps.value = Object.fromEntries(AGENT_STEPS.map((s) => [s, 'running' as StepStatus]))
@@ -35,6 +52,7 @@ export function useScan() {
       report.value = r
       origin.value = 'scan'
       status.value = 'done'
+      void loadStorage(conn)
     } catch (e) {
       console.error('[device-check] agent scan failed', e)
       if (e instanceof AgentError && (e.code === 'unreachable' || e.status === 401 || e.status === 403)) {
@@ -69,7 +87,7 @@ export function useScan() {
     if (!link || agent.value) return
     try {
       const s = await agentStatus(link)
-      agent.value = { link, version: s.agent_version }
+      agent.value = { link, version: s.agent_version, features: s.features ?? ['hardware'] }
       agentLost.value = false
     } catch {
       forgetAgentLink()
@@ -84,9 +102,10 @@ export function useScan() {
   function show(r: HardwareReport) {
     report.value = r
     origin.value = 'saved'
+    storage.value = null // a saved hardware report has no live storage data
   }
 
-  return { report, origin, status, steps, stepIds, agent, agentLost, scan, show, connectAgent }
+  return { report, origin, status, steps, stepIds, agent, agentLost, storage, storageStatus, scan, show, connectAgent }
 }
 
 export function downloadJson(r: HardwareReport) {

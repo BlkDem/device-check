@@ -3,7 +3,7 @@ import { freeSlots } from '~/lib/report'
 import * as S from '~/lib/sections'
 
 const { t, locale } = useI18n()
-const { report, origin } = useScan()
+const { report, origin, agent, storage, storageStatus } = useScan()
 const hide = useState('hideUnavailable', () => false)
 const savedOpen = ref(false)
 
@@ -15,7 +15,8 @@ useSeoMeta({
 })
 
 const memoryView = computed(() => (report.value ? { ...report.value.memory, slots_free: freeSlots(report.value.memory) } : null))
-const nav = ['cpu', 'motherboard', 'memory', 'gpu', 'storage', 'displays', 'system', 'browser'] as const
+const nav = ['cpu', 'motherboard', 'memory', 'gpu', 'storage', 'health', 'displays', 'system', 'browser'] as const
+const shown = (n: string) => (n === 'browser' ? !!report.value?.browser : n === 'health' ? !!agent.value : true)
 const confidences = ['exact', 'approximate', 'detected', 'unavailable'] as const
 </script>
 
@@ -24,10 +25,16 @@ const confidences = ['exact', 'approximate', 'detected', 'unavailable'] as const
     <section class="hero">
       <span class="kicker">{{ t('hud.kicker') }}</span>
       <h1>{{ t('dash.title') }}</h1>
-      <p class="dim">{{ t('dash.subtitle') }}</p>
+      <p class="dim">{{ agent ? t('dash.subtitle_agent') : t('dash.subtitle') }}</p>
     </section>
 
     <ScanBar @open-saved="savedOpen = true" />
+
+    <NuxtLink v-if="!agent" to="/agent" class="cta card">
+      <HwIcon name="download" :size="20" />
+      <span><strong>{{ t('cta.title') }}</strong><span class="dim">{{ t('cta.text') }}</span></span>
+      <span class="mono go">{{ t('cta.go') }} →</span>
+    </NuxtLink>
 
     <div class="legend">
       <span class="lg-title">{{ t('hud.legend') }}</span>
@@ -45,7 +52,7 @@ const confidences = ['exact', 'approximate', 'detected', 'unavailable'] as const
 
       <nav class="subnav">
         <div class="links">
-          <a v-for="n in nav.filter((x) => x !== 'browser' || report?.browser)" :key="n" :href="`#${n}`">{{ t(`section.${n}`) }}</a>
+          <a v-for="n in nav.filter(shown)" :key="n" :href="`#${n}`">{{ t(`section.${n}`) }}</a>
         </div>
         <label class="toggle"><input v-model="hide" type="checkbox" /> {{ t('action.hide_unavailable') }}</label>
       </nav>
@@ -56,7 +63,7 @@ const confidences = ['exact', 'approximate', 'detected', 'unavailable'] as const
         </SectionCard>
 
         <SectionCard id="motherboard" icon="board" :title="t('section.motherboard')">
-          <p v-if="report.scan.source === 'browser'" class="notice"><HwIcon name="info" :size="16" />{{ t('notice.agent') }}</p>
+          <p v-if="report.scan.source === 'browser'" class="notice"><HwIcon name="info" :size="16" /><span>{{ t('notice.agent') }} <NuxtLink to="/agent">{{ t('cta.go') }}</NuxtLink></span></p>
           <FieldList :defs="S.BOARD_FIELDS" :data="report.motherboard" />
         </SectionCard>
 
@@ -83,13 +90,20 @@ const confidences = ['exact', 'approximate', 'detected', 'unavailable'] as const
         </SectionCard>
 
         <SectionCard id="storage" icon="storage" :title="t('section.storage')">
-          <p v-if="!report.storage.length" class="notice"><HwIcon name="info" :size="16" />{{ t('notice.storage') }} {{ t('notice.agent') }}</p>
+          <p v-if="!report.storage.length" class="notice"><HwIcon name="info" :size="16" /><span>{{ t('notice.storage') }} {{ t('notice.agent') }} <NuxtLink to="/agent">{{ t('cta.go') }}</NuxtLink></span></p>
           <div v-for="(d, i) in report.storage" :key="i" class="sub card">
             <FieldList :defs="S.STORAGE_FIELDS" :data="d" />
           </div>
           <h3>{{ t('section.volumes') }}</h3>
           <p v-if="!report.volumes.length" class="notice"><HwIcon name="info" :size="16" />{{ t('notice.volumes') }}</p>
           <VolumeTable v-else :volumes="report.volumes" />
+        </SectionCard>
+
+        <SectionCard v-if="agent" id="health" icon="storage" :title="t('section.health')" :subtitle="t('health.subtitle')">
+          <p v-if="storageStatus === 'loading'" class="muted">{{ t('health.loading') }}</p>
+          <p v-else-if="storageStatus === 'error'" class="notice warn"><HwIcon name="alert" :size="16" />{{ t('health.error') }}</p>
+          <p v-else-if="!agent.features.includes('storage_health')" class="notice"><HwIcon name="info" :size="16" /><span>{{ t('health.update_agent') }} <NuxtLink to="/agent">{{ t('cta.go') }}</NuxtLink></span></p>
+          <StorageHealth v-else-if="storage" :report="storage" />
         </SectionCard>
 
         <SectionCard id="displays" icon="display" :title="t('section.displays')" :subtitle="report.scan.source === 'browser' ? t('display.only_current') : undefined">
@@ -149,6 +163,11 @@ const confidences = ['exact', 'approximate', 'detected', 'unavailable'] as const
 .lg { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 
 .sec-title { margin-top: 10px; }
+
+.cta { display: flex; align-items: center; gap: 14px; padding: 14px 16px; color: var(--text); text-decoration: none; box-shadow: inset 2px 0 0 var(--accent), inset 0 0 0 1px var(--accent-line); }
+.cta:hover { text-decoration: none; background: rgba(25, 230, 255, .05); }
+.cta > span:nth-child(2) { display: grid; gap: 2px; flex: 1; }
+.cta .go { color: var(--accent); white-space: nowrap; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
 
 .subnav {
   position: sticky; top: 60px; z-index: 20; display: flex; align-items: center; gap: 12px; justify-content: space-between;

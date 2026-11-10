@@ -26,6 +26,9 @@ public sealed class LocalApiOptions
 
     /// <summary>The API takes no request bodies; anything larger than this is rejected.</summary>
     public long MaxRequestBodyBytes { get; init; } = 1024;
+
+    /// <summary>Storage health provider (StorageHealthReport JSON). Null = endpoint disabled.</summary>
+    public Func<CancellationToken, Task<string>>? StorageHealth { get; init; }
 }
 
 /// <summary>
@@ -163,7 +166,7 @@ public sealed class LocalApiServer : IAsyncDisposable
             case "/api/version" when get:
                 await Json(res, new { _options.AgentVersion, SchemaVersion = SchemaInfo.Version, ApiVersion });
                 return;
-            case "/api/status" or "/api/version" or "/api/scan" or "/api/report":
+            case "/api/status" or "/api/version" or "/api/scan" or "/api/report" or "/api/storage":
             case var p when p.StartsWith("/api/report/", StringComparison.Ordinal):
                 break;
             default:
@@ -185,6 +188,19 @@ public sealed class LocalApiServer : IAsyncDisposable
         else if (path == "/api/report" && get)
         {
             await Report(res, _scans.Latest);
+        }
+        else if (path == "/api/storage" && get)
+        {
+            if (_options.StorageHealth is null) { await Error(res, 404, "not_available"); return; }
+            string json;
+            try { json = await _options.StorageHealth(_lifetime.Token); }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                await Error(res, 500, "storage_failed");
+                return;
+            }
+            res.ContentType = "application/json; charset=utf-8";
+            await res.WriteAsync(json, Encoding.UTF8);
         }
         else if (path.StartsWith("/api/report/", StringComparison.Ordinal) && get)
         {
@@ -209,6 +225,7 @@ public sealed class LocalApiServer : IAsyncDisposable
             _options.AgentVersion,
             SchemaVersion = SchemaInfo.Version,
             LastScan = last is null ? null : new { last.Scan.Id, last.Scan.CreatedAt },
+            Features = _options.StorageHealth is null ? new[] { "hardware" } : new[] { "hardware", "storage_health" },
         };
     }
 

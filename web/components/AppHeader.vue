@@ -3,6 +3,7 @@ const { t, locale } = useI18n()
 const toggle = () => (locale.value = locale.value === 'ru' ? 'en' : 'ru')
 const links = [
   { to: '/', key: 'nav.dashboard' },
+  { to: '/agent', key: 'nav.agent' },
   { to: '/about', key: 'nav.about' },
   { to: '/limitations', key: 'nav.limitations' },
   { to: '/privacy', key: 'nav.privacy' },

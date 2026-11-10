@@ -15,12 +15,17 @@ public sealed class LocalApiTests : IAsyncLifetime
     private ScanService _scans = null!;
     private LocalApiServer _api = null!;
     private HttpClient _http = null!;
+    private int StorageCalls;
 
     public async Task InitializeAsync()
     {
         // The delay makes the scan long enough for concurrent requests to overlap.
         _scans = new ScanService(() => [.. Machines.AmdLaptop(), new DelayCollector(TimeSpan.FromMilliseconds(300))], new ScanOptions { AgentVersion = "0.1.0-test" });
-        _api = await LocalApiServer.StartAsync(_scans, new LocalApiOptions { PreferredPort = 0, AllowedOrigins = [Site], AgentVersion = "0.1.0-test" });
+        _api = await LocalApiServer.StartAsync(_scans, new LocalApiOptions
+        {
+            PreferredPort = 0, AllowedOrigins = [Site], AgentVersion = "0.1.0-test",
+            StorageHealth = async _ => { StorageCalls++; await Task.Yield(); return """{"kind":"storage_health"}"""; },
+        });
         _http = new HttpClient { BaseAddress = new Uri(_api.BaseUrl) };
     }
 
@@ -104,6 +109,30 @@ public sealed class LocalApiTests : IAsyncLifetime
         var b = _http.SendAsync(Req(HttpMethod.Post, "/api/scan"));
         var ids = await Task.WhenAll((await Task.WhenAll(a, b)).Select(async r => (string?)(await Body(r))["id"]));
         Assert.Equal(ids[0], ids[1]);
+    }
+
+    [Fact]
+    public async Task Storage_health_endpoint()
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _http.SendAsync(Req(HttpMethod.Get, "/api/storage", auth: false))).StatusCode);
+        Assert.Equal(0, StorageCalls);
+        var r = await _http.SendAsync(Req(HttpMethod.Get, "/api/storage", origin: Site));
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        Assert.Equal("storage_health", (string?)(await Body(r))["kind"]);
+        Assert.Equal(Site, r.Headers.GetValues("Access-Control-Allow-Origin").Single());
+
+        var status = await Body(await _http.SendAsync(Req(HttpMethod.Get, "/api/status", auth: false)));
+        Assert.Contains("storage_health", status["features"]!.AsArray().Select(x => (string?)x));
+    }
+
+    [Fact]
+    public async Task Storage_endpoint_is_absent_without_provider()
+    {
+        await using var bare = await LocalApiServer.StartAsync(_scans, new LocalApiOptions { PreferredPort = 0 });
+        using var http = new HttpClient { BaseAddress = new Uri(bare.BaseUrl) };
+        var req = new HttpRequestMessage(HttpMethod.Get, "/api/storage");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bare.Token);
+        Assert.Equal(HttpStatusCode.NotFound, (await http.SendAsync(req)).StatusCode);
     }
 
     [Fact]

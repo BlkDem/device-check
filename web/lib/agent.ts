@@ -1,3 +1,4 @@
+import type { StorageHealthReport } from './storage'
 import type { HardwareReport } from './types'
 
 /**
@@ -14,6 +15,8 @@ export interface AgentStatus {
   agent_version: string
   schema_version: string
   last_scan: { id: string; created_at: string } | null
+  /** 'hardware', 'storage_health' (agent ≥ 0.2) */
+  features?: string[]
 }
 
 /** Agent collector ids, in the order the agent reports them (report.diagnostics.collectors). */
@@ -90,3 +93,6 @@ export async function agentReport(link: AgentLink, fresh: boolean): Promise<Hard
   const { id } = await call<{ id: string }>(link, '/api/scan', 'POST')
   return call<HardwareReport>(link, `/api/report/${id}`)
 }
+
+/** Storage health from the agent's monitor (agent ≥ 0.2; the agent caches it for 60 s). */
+export const agentStorage = (link: AgentLink) => call<StorageHealthReport>(link, '/api/storage')

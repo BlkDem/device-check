@@ -24,6 +24,7 @@
     <ProjectReference Include="..\DeviceCheck.Agent.Export\DeviceCheck.Agent.Export.csproj" />
     <ProjectReference Include="..\DeviceCheck.Agent.Windows\DeviceCheck.Agent.Windows.csproj" />
     <ProjectReference Include="..\DeviceCheck.Agent.LocalApi\DeviceCheck.Agent.LocalApi.csproj" />
+    <ProjectReference Include="..\DeviceCheck.Agent.Monitoring\DeviceCheck.Agent.Monitoring.csproj" />
   </ItemGroup>
 
   <ItemGroup>

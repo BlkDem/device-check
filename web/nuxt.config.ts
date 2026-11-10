@@ -12,4 +12,16 @@ export default defineNuxtConfig({
     },
   },
   typescript: { strict: true },
+  // Production is a static site (nuxt generate → nginx). Every page is prerendered; scans run in the browser.
+  nitro: {
+    prerender: { crawlLinks: true, routes: ['/', '/agent', '/about', '/limitations', '/privacy'] },
+  },
+  runtimeConfig: {
+    public: {
+      siteUrl: 'https://device-check.umolab.ru',
+      /** Manifest of the latest agent release, published next to the site by CI. */
+      agentManifest: '/downloads/agent/latest.json',
+      releasesUrl: 'https://github.com/BlkDem/device-check/releases',
+    },
+  },
 })

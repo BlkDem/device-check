@@ -5,6 +5,7 @@ using DeviceCheck.Agent.Core.Collection;
 using DeviceCheck.Agent.Core.Model;
 using DeviceCheck.Agent.Export;
 using DeviceCheck.Agent.LocalApi;
+using DeviceCheck.Agent.Monitoring.Storage;
 using DeviceCheck.Agent.Windows;
 
 namespace DeviceCheck.Agent.UI;
@@ -19,6 +20,7 @@ internal sealed class TrayApp : ApplicationContext
     private readonly string _version;
     private readonly SynchronizationContext _ui;
     private readonly ScanService _scans;
+    private readonly StorageHealthCache _storage;
     private readonly NotifyIcon _icon;
     private readonly ContextMenuStrip _menu = new();
     private readonly ToolStripMenuItem _status, _summary, _open, _rescan, _save, _copy;
@@ -36,6 +38,8 @@ internal sealed class TrayApp : ApplicationContext
         _scans = new ScanService(
             () => CollectorSet.Create(wmi, new SmbiosSource(), new ProcessorSource(), new GraphicsSource(), new DisplaySource(), new PlatformSource()),
             new ScanOptions { AgentVersion = version, CollectorTimeout = TimeSpan.FromSeconds(20), MaxParallelism = 3 });
+        _storage = new StorageHealthCache(new StorageHealthMonitor(wmi, new StorageDeviceSource(), new PlatformSource(),
+            new StorageMonitorOptions { AgentVersion = version }));
         _scans.Progress += p => Ui(() => OnProgress(p));
         _scans.Completed += r => Ui(() => OnCompleted(r));
 
@@ -74,6 +78,7 @@ internal sealed class TrayApp : ApplicationContext
                 PreferredPort = _settings.Port,
                 AllowedOrigins = _settings.AllowedOrigins,
                 AgentVersion = _version,
+                StorageHealth = _storage.GetJsonAsync,
             });
         }
         catch (Exception e)

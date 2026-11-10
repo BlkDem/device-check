@@ -10,7 +10,7 @@ namespace DeviceCheck.Agent.UI;
 internal sealed class AgentSettings
 {
     public const string FileName = "DeviceCheck.Agent.json";
-    public const string DefaultSite = "http://localhost:3000";
+    public const string DefaultSite = "https://device-check.umolab.ru";
 
     public string SiteUrl { get; set; } = DefaultSite;
     public List<string> AllowedOrigins { get; set; } = [];
@@ -54,12 +54,18 @@ internal sealed class AgentSettings
         }
         if (s.Port is < 0 or > 65535) s.Port = 47615;
 
-        // The site itself is always allowed; for a local site both host spellings are.
+        // The site itself is always allowed, over http and https (the server answers on both);
+        // for a local site both host spellings are.
         var origins = new HashSet<string>(s.AllowedOrigins.Select(o => o.TrimEnd('/')), StringComparer.Ordinal) { Origin(site) };
         if (site.IsLoopback)
         {
             origins.Add(Origin(new UriBuilder(site) { Host = "localhost" }.Uri));
             origins.Add(Origin(new UriBuilder(site) { Host = "127.0.0.1" }.Uri));
+        }
+        else
+        {
+            origins.Add(Origin(new UriBuilder(site) { Scheme = "https", Port = -1 }.Uri));
+            origins.Add(Origin(new UriBuilder(site) { Scheme = "http", Port = -1 }.Uri));
         }
         s.AllowedOrigins = origins.Order(StringComparer.Ordinal).ToList();
         return s;
