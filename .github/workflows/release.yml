@@ -19,8 +19,8 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
       - id: v
@@ -34,7 +34,7 @@ jobs:
       - name: Smoke test — silent install, run, uninstall
         run: ./agent/build/smoke-installer.ps1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: release
           path: |
@@ -51,7 +51,7 @@ jobs:
       name: production
       url: https://device-check.umolab.ru/agent
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: release
           path: dist

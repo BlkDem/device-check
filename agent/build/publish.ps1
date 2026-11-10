@@ -49,7 +49,7 @@ $files = @()
 function New-Zip([string]$name, [string]$kind, [string[]]$projects, [string[]]$publishArgs) {
     $out = Join-Path $dist ('publish-' + [IO.Path]::GetFileNameWithoutExtension($name))
     foreach ($proj in $projects) {
-        Invoke-Dotnet publish $proj -c $Configuration -r $Runtime -o $out --nologo -p:DebugType=none @versionArgs @publishArgs
+        Invoke-Dotnet publish $proj -c $Configuration -r $Runtime -o $out --nologo '-p:DebugType=none' @versionArgs @publishArgs
     }
     Copy-Item (Join-Path $root 'README.md') $out
     $zip = Join-Path $dist $name
@@ -65,7 +65,7 @@ if ($Installer) {
     # Installer layout: tray + console in one folder sharing one self-contained runtime (no single-file extraction).
     $layout = Join-Path $dist 'installer-root'
     foreach ($proj in @($tray, $cli)) {
-        Invoke-Dotnet publish $proj -c $Configuration -r $Runtime -o $layout --nologo -p:DebugType=none --self-contained true @versionArgs
+        Invoke-Dotnet publish $proj -c $Configuration -r $Runtime -o $layout --nologo '-p:DebugType=none' --self-contained true @versionArgs
     }
     Copy-Item (Join-Path $root 'README.md') $layout
     $iscc = @(
