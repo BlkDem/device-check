@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.9.0.schema.json
+
+PackageIdentifier: BlkDem.DeviceCheckAgent
+PackageVersion: 0.3.0
+PackageLocale: en-US
+Publisher: Device Check
+PublisherUrl: https://device-check.umolab.ru
+PublisherSupportUrl: https://github.com/BlkDem/device-check/issues
+PrivacyUrl: https://device-check.umolab.ru/privacy
+Author: BlkDem
+PackageName: Device Check Agent
+PackageUrl: https://device-check.umolab.ru/agent
+License: MIT
+LicenseUrl: https://github.com/BlkDem/device-check/blob/main/LICENSE
+Copyright: Copyright (c) 2026 BlkDem
+ShortDescription: Hardware report and drive health (NVMe / SATA SMART) for Windows in a local dashboard.
+Description: |-
+  Device Check Agent reads your PC hardware locally and shows it in a dashboard on 127.0.0.1:
+  CPU, memory modules and slots, motherboard and BIOS, GPUs, monitors, drives with NVMe health log / SATA SMART,
+  temperature, wear and free space. Every value comes with its source and confidence.
+  Read-only, no administrator rights, no drivers or services, no telemetry; reports never leave the computer.
+Moniker: device-check
+Tags:
+- diagnostics
+- disk-health
+- hardware
+- nvme
+- smart
+- system-information
+ReleaseNotesUrl: https://github.com/BlkDem/device-check/releases/tag/v0.3.0
+ManifestType: defaultLocale
+ManifestVersion: 1.9.0

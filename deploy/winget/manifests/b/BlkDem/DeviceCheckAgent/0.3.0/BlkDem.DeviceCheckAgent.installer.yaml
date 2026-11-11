@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
+
+PackageIdentifier: BlkDem.DeviceCheckAgent
+PackageVersion: 0.3.0
+MinimumOSVersion: 10.0.17763.0
+InstallerType: inno
+Scope: user
+InstallModes:
+- interactive
+- silent
+- silentWithProgress
+UpgradeBehavior: install
+ReleaseDate: 2026-11-11
+AppsAndFeaturesEntries:
+- DisplayName: Device Check Agent
+  Publisher: Device Check
+  ProductCode: '{8C4D2F7A-5E1B-4F3A-9C6D-2B7E1A0F4D93}_is1'
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/BlkDem/device-check/releases/download/v0.3.0/device-check-agent-0.3.0-setup.exe
+  InstallerSha256: C32B5D8C2765511CA9A950665AF76424B4402F60E2F667C696DF2AB10CA560EF
+  ProductCode: '{8C4D2F7A-5E1B-4F3A-9C6D-2B7E1A0F4D93}_is1'
+ManifestType: installer
+ManifestVersion: 1.9.0
