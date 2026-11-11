@@ -531,6 +531,7 @@ export default {
   'agent.local_updates': 'Это дашборд, встроенный в агента. Новые версии — на сайте',
   'agent.store_desc': 'Без предупреждений SmartScreen, обновления приходят автоматически.',
   'agent.store_get': 'Открыть в Store',
+  'agent.winget_desc': 'Установка из командной строки Windows: без предупреждений SmartScreen, обновление — winget upgrade.',
   'agent.loading': 'Загружаем информацию о релизе…',
   'agent.manifest_failed': 'Информация о релизе сейчас недоступна. Все сборки также есть на',
   'agent.recommended': 'рекомендуем',

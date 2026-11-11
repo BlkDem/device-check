@@ -27,6 +27,8 @@ export default defineNuxtConfig({
       releasesUrl: 'https://github.com/BlkDem/device-check/releases',
       /** Microsoft Store listing (NUXT_PUBLIC_STORE_URL at build time); empty until the app is published. */
       storeUrl: '',
+      /** winget package id (NUXT_PUBLIC_WINGET_ID at build time); empty until the package is accepted. */
+      wingetId: '',
     },
   },
 })

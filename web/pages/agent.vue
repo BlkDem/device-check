@@ -67,6 +67,14 @@ const rows = ['cpu', 'memory', 'board', 'gpu', 'storage', 'health', 'display'] a
         </div>
         <a class="btn primary" :href="cfg.storeUrl" target="_blank" rel="noopener"><HwIcon name="download" :size="16" />{{ t('agent.store_get') }}</a>
       </div>
+      <div v-if="cfg.wingetId && !local" class="file winget">
+        <div class="fi">
+          <div class="fk">winget</div>
+          <div class="fd">{{ t('agent.winget_desc') }}</div>
+          <code class="cmd mono">winget install {{ cfg.wingetId }}</code>
+        </div>
+        <button class="btn" @click="copy(`winget install ${cfg.wingetId}`)"><HwIcon name="copy" :size="16" />{{ t('action.copy') }}</button>
+      </div>
       <div v-if="manifest" class="files">
         <div v-for="f in files" :key="f.name" class="file" :class="f.kind">
           <div class="fi">
@@ -139,6 +147,7 @@ const rows = ['cpu', 'memory', 'board', 'gpu', 'storage', 'health', 'display'] a
 .rec { font-size: 10px; color: #001218; background: var(--accent); padding: 1px 6px; letter-spacing: .1em; text-transform: uppercase; }
 .fd { color: var(--text-2); font-size: 13px; margin-top: 3px; }
 .fm { color: var(--text-3); font-size: 11.5px; margin-top: 5px; word-break: break-all; }
+.cmd { display: inline-block; margin-top: 6px; padding: 4px 8px; background: rgba(0, 0, 0, .35); color: var(--accent); font-size: 13px; }
 .sha { background: none; border: 0; color: var(--text-3); font: inherit; cursor: pointer; padding: 0; text-decoration: underline dotted; }
 .sha:hover { color: var(--accent); }
 .file .btn { flex: none; }

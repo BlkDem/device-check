@@ -35,6 +35,8 @@ jobs:
         env:
           # Microsoft Store listing of the agent (repository variable STORE_URL); empty until the app is published.
           NUXT_PUBLIC_STORE_URL: ${{ vars.STORE_URL }}
+          # winget package id (repository variable WINGET_ID); empty until the package is in winget-pkgs.
+          NUXT_PUBLIC_WINGET_ID: ${{ vars.WINGET_ID }}
 
       - name: SSH key
         run: |

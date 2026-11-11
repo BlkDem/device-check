@@ -525,6 +525,7 @@ export default {
   'agent.local_updates': 'This is the dashboard built into the agent. New versions are on the site',
   'agent.store_desc': 'No SmartScreen warnings, updates arrive automatically.',
   'agent.store_get': 'Open in the Store',
+  'agent.winget_desc': 'Install from the Windows command line: no SmartScreen warning, update with winget upgrade.',
   'agent.loading': 'Loading release information…',
   'agent.manifest_failed': 'Release information is unavailable right now. All builds are also on',
   'agent.recommended': 'recommended',
